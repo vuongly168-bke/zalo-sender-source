@@ -1,0 +1,37 @@
+{
+  "name": "zalo-sender",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1106.0",
+    "@smithy/node-http-handler": "^4.11.2",
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.112.0",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^1.14.0",
+    "next": "^16.3.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "read-excel-file": "^9.3.2",
+    "sharp": "^0.35.4",
+    "write-excel-file": "^4.1.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "^16.3.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

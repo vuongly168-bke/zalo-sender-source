@@ -1,0 +1,89 @@
+flowchart TB
+    subgraph Client["🌐 CLIENT (Browser)"]
+        Browser[Trình duyệt người dùng<br/>your-domain.example]
+    end
+
+    subgraph Vercel["☁️ VERCEL - Next.js 16 App Router"]
+        direction TB
+
+        subgraph Pages["📄 Pages (React Server/Client Components)"]
+            LoginPage["/login<br/>/register"]
+            Dashboard["/dashboard<br/>/dashboard/projects/[id]<br/>/dashboard/projects/[id]/campaigns/[id]<br/>/dashboard/settings"]
+        end
+
+        subgraph Middleware["🛡️ Middleware (Auth Guard)"]
+            MW[updateSession - Supabase SSR<br/>Block unauth → /login<br/>Authed → /dashboard]
+        end
+
+        subgraph APIRoutes["🔌 API Routes"]
+            APIUpload[POST /api/upload<br/>FormData → Cloudinary<br/>SHA1 signature]
+            APIGroupInfo[POST /api/zalo/group-info<br/>Lookup Zalo group from link]
+            APISend[POST /api/zalo/send<br/>Send messages to groups]
+            APICron[GET /api/cron<br/>Auth: Bearer CRON_SECRET<br/>Service Role bypass RLS]
+            APICronManual[POST /api/cron/manual<br/>For UI button]
+        end
+    end
+
+    subgraph External["🌍 EXTERNAL SERVICES"]
+        direction LR
+
+        subgraph Supabase["🗄️ SUPABASE"]
+            Auth[Auth<br/>Email/Password]
+            DB[(PostgreSQL<br/>+ RLS Policies<br/>+ SECURITY DEFINER fns)]
+            Tables["Tables:<br/>workspaces<br/>workspace_members<br/>api_keys<br/>projects<br/>zalo_groups<br/>campaigns<br/>campaign_groups<br/>profiles"]
+        end
+
+        Cloudinary["📦 CLOUDINARY<br/>Image hosting<br/>folder: ZALO_AUTO_SEND"]
+
+        FuncVN["⚡ func.vn API<br/>Zalo proxy:<br/>• get_group_info<br/>• group_send_message<br/>• group_send_images<br/>• user_send_message"]
+
+        Zalo["💬 ZALO<br/>Messages delivered<br/>to groups"]
+
+        CronJob["⏰ cron-job.org<br/>Ping /api/cron<br/>every 1 minute<br/>Header: Authorization Bearer"]
+    end
+
+    subgraph DataFlow["💾 DATABASE FLOW"]
+        SchemaA[workspaces 1:N workspace_members]
+        SchemaB[workspaces 1:N api_keys]
+        SchemaC[workspaces 1:N projects]
+        SchemaD[projects 1:N zalo_groups]
+        SchemaE[projects 1:N campaigns]
+        SchemaF[campaigns 1:N campaign_groups N:1 zalo_groups]
+    end
+
+    Browser -->|HTTPS| MW
+    MW --> Pages
+    MW --> APIRoutes
+
+    Pages -->|Read/Write<br/>via @supabase/ssr| Auth
+    Pages -->|RLS-protected queries| DB
+
+    APIUpload -->|Upload base64| Cloudinary
+    APIGroupInfo -->|"POST {group_link}<br/>Bearer token"| FuncVN
+    APISend -->|"POST {group_id, message, urls}<br/>Bearer token"| FuncVN
+    APICron -->|Service Role Key| DB
+    APICron -.->|Internal fetch| APISend
+
+    FuncVN --> Zalo
+    CronJob -->|GET every 1min| APICron
+
+    DB --- Tables
+    Tables -.- DataFlow
+
+    classDef client fill:#dbeafe,stroke:#1e40af,color:#1e3a8a
+    classDef vercel fill:#000,stroke:#fff,color:#fff
+    classDef supabase fill:#3ecf8e,stroke:#10b981,color:#000
+    classDef cloudinary fill:#3448c5,stroke:#1e3a8a,color:#fff
+    classDef funcvn fill:#f59e0b,stroke:#d97706,color:#000
+    classDef cron fill:#ef4444,stroke:#b91c1c,color:#fff
+    classDef zalo fill:#0068ff,stroke:#0050cc,color:#fff
+    classDef schema fill:#fef3c7,stroke:#d97706,color:#92400e
+
+    class Browser client
+    class LoginPage,Dashboard,MW,APIUpload,APIGroupInfo,APISend,APICron,APICronManual vercel
+    class Auth,DB,Tables supabase
+    class Cloudinary cloudinary
+    class FuncVN funcvn
+    class CronJob cron
+    class Zalo zalo
+    class SchemaA,SchemaB,SchemaC,SchemaD,SchemaE,SchemaF schema

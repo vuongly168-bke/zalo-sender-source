@@ -1,0 +1,46 @@
+flowchart TD
+    Start([👤 Người dùng truy cập<br/>your-domain.example]) --> Login{Đã có tài khoản?}
+
+    Login -->|Chưa| Register[📝 Đăng ký<br/>Họ tên + Email + Mật khẩu<br/>Tên Workspace]
+    Login -->|Rồi| SignIn[🔑 Đăng nhập<br/>Email + Mật khẩu]
+
+    Register --> Setup
+    SignIn --> Setup
+
+    Setup[⚙️ Cài đặt API Keys<br/>5 API từ func.vn:<br/>• Lấy thông tin nhóm<br/>• Gửi tin nhắn nhóm<br/>• Gửi ảnh nhóm<br/>• Gửi tin user<br/>• Lấy thông tin user]
+
+    Setup --> CreateProject[📂 Tạo Dự án<br/>VD: Lịch họp VTS1]
+
+    CreateProject --> AddGroup[👥 Thêm Nhóm Zalo<br/>Paste link nhóm<br/>→ Hệ thống tự lấy ID]
+
+    AddGroup --> CreateCampaign[✉️ Tạo Đợt gửi mới<br/>• Tên đợt<br/>• Nội dung tin nhắn<br/>• Chọn nhóm nhận<br/>• Đính kèm ảnh tùy chọn<br/>• Hẹn ngày giờ gửi]
+
+    CreateCampaign --> Choice{Chọn cách gửi}
+
+    Choice -->|Gửi ngay| SendNow[🚀 Hệ thống gửi ngay lập tức<br/>tới các nhóm Zalo đã chọn]
+    Choice -->|Lên lịch| Schedule[⏰ Đợi đến giờ hẹn<br/>Cron tự động chạy mỗi phút]
+
+    Schedule --> AutoSend[🤖 Đến giờ:<br/>Hệ thống tự động gửi]
+
+    SendNow --> Result
+    AutoSend --> Result
+
+    Result[📊 Xem kết quả<br/>• Số nhóm thành công<br/>• Số nhóm thất bại<br/>• Chi tiết từng nhóm]
+
+    Result --> Reuse{Cần gửi lại?}
+    Reuse -->|Có| Copy[📋 Sao chép & sửa<br/>Đổi giờ / nội dung / nhóm]
+    Reuse -->|Không| End([✅ Hoàn tất])
+
+    Copy --> CreateCampaign
+
+    classDef startEnd fill:#10b981,stroke:#059669,color:#fff,font-weight:bold
+    classDef action fill:#3b82f6,stroke:#1e40af,color:#fff
+    classDef decision fill:#f59e0b,stroke:#d97706,color:#fff,font-weight:bold
+    classDef auto fill:#8b5cf6,stroke:#6d28d9,color:#fff
+    classDef result fill:#ec4899,stroke:#be185d,color:#fff
+
+    class Start,End startEnd
+    class Register,SignIn,Setup,CreateProject,AddGroup,CreateCampaign,SendNow,Copy action
+    class Login,Choice,Reuse decision
+    class Schedule,AutoSend auto
+    class Result result

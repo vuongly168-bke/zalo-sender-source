@@ -1,0 +1,68 @@
+sequenceDiagram
+    autonumber
+    participant U as 👤 User
+    participant W as 🌐 Web App<br/>(your-domain.example)
+    participant DB as 🗄️ Supabase DB
+    participant CJ as ⏰ cron-job.org
+    participant API as 🔌 /api/cron<br/>(Vercel)
+    participant SEND as 🔌 /api/zalo/send
+    participant FN as ⚡ func.vn API
+    participant Z as 💬 Zalo Group
+
+    Note over U,Z: 📋 GIAI ĐOẠN 1 - Tạo lịch gửi
+    U->>W: Tạo Đợt gửi<br/>(message, image, scheduled_at)
+    W->>DB: INSERT campaigns<br/>status='scheduled'
+    W->>DB: INSERT campaign_groups<br/>(1 row mỗi nhóm Zalo)
+    DB-->>W: ✅ Saved
+    W-->>U: "Đã lên lịch gửi"
+
+    Note over U,Z: ⏱️ GIAI ĐOẠN 2 - Cron tự động (mỗi 1 phút)
+    loop Every 1 minute
+        CJ->>API: GET /api/cron<br/>Authorization: Bearer CRON_SECRET
+        API->>API: Validate token
+        API->>DB: SELECT campaigns<br/>WHERE status='scheduled'<br/>AND scheduled_at <= NOW()
+        Note right of API: Dùng SERVICE_ROLE_KEY<br/>để bypass RLS
+
+        alt Có campaign đến hạn
+            DB-->>API: [campaign1, campaign2, ...]
+
+            loop For each campaign
+                API->>SEND: POST /api/zalo/send<br/>{campaignId}<br/>x-cron-secret header
+
+                SEND->>DB: SELECT campaign_groups<br/>JOIN zalo_groups, api_keys
+                DB-->>SEND: groups + tokens
+
+                SEND->>DB: UPDATE campaigns<br/>status='sending'
+
+                loop For each group
+                    alt Có ảnh đính kèm
+                        SEND->>FN: POST group_send_images<br/>{group_id, urls[]}<br/>Bearer token
+                        FN->>Z: Gửi ảnh
+                        FN-->>SEND: 200 OK / Failed
+                    end
+
+                    SEND->>FN: POST group_send_message<br/>{group_id, message}<br/>Bearer token
+                    FN->>Z: Gửi tin nhắn
+                    FN-->>SEND: 200 OK / Failed
+
+                    SEND->>DB: UPDATE campaign_groups<br/>status='sent'/'failed'<br/>sent_at, error_message
+
+                    Note right of SEND: Delay 1 giây<br/>tránh rate limit
+                end
+
+                SEND->>DB: UPDATE campaigns<br/>status='sent'/'partial'/'failed'
+                SEND-->>API: {success, sent, failed}
+            end
+
+            API-->>CJ: {message: "Done", count: N, results: [...]}
+        else Không có campaign
+            DB-->>API: []
+            API-->>CJ: {message: "No campaigns", count: 0}
+        end
+    end
+
+    Note over U,Z: 👀 GIAI ĐOẠN 3 - User xem kết quả
+    U->>W: Mở trang Đợt gửi
+    W->>DB: SELECT campaigns + campaign_groups
+    DB-->>W: campaign data + per-group status
+    W-->>U: 📊 Hiển thị:<br/>✅ Thành công: X<br/>❌ Thất bại: Y
